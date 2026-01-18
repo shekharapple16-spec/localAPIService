@@ -1,26 +1,31 @@
 import express from 'express';
 import pool from './db.js';
-import path from 'path';
-
-// ADD THESE IMPORTS
-// import swaggerUi from 'swagger-ui-express';
-// import YAML from 'yamljs';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './swagger.js';
 
 const app = express();
 const PORT = 3000;
 
-// Native JSON parsing
+/* =========================
+   Middleware
+========================= */
 app.use(express.json());
 
-// LOAD SWAGGER FILE
-// const swaggerDocument = YAML.load(
-//   path.join(process.cwd(), 'swagger', 'openapi.yaml')
-// );
+/* =========================
+   Swagger
+========================= */
 
-// EXPOSE SWAGGER UI
-// app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+// Raw Swagger JSON (for Playwright / automation)
+app.get('/v3/api-docs', (_req, res) => {
+  res.status(200).json(swaggerSpec);
+});
 
-// Test DB connection
+// Swagger UI
+app.use('/swagger', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+/* =========================
+   DB Connection Test
+========================= */
 pool.connect((err, client, release) => {
   if (err) {
     console.error('Database connection error:', err);
@@ -30,11 +35,35 @@ pool.connect((err, client, release) => {
   }
 });
 
+/* =========================
+   APIs
+========================= */
+
 /**
- * POST - Create Scheduling Group
+ * @swagger
+ * /scheduling-groups:
+ *   post:
+ *     summary: Create Scheduling Group
+ *     tags: [Scheduling Groups]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [groupName, createdBy, status]
+ *             properties:
+ *               groupName:
+ *                 type: string
+ *               createdBy:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Created successfully
  */
 app.post('/scheduling-groups', async (req, res) => {
-  console.log('POST /scheduling-groups called with body:', req.body);
   const { groupName, createdBy, status } = req.body;
 
   if (!groupName || !createdBy || !status) {
@@ -48,21 +77,24 @@ app.post('/scheduling-groups', async (req, res) => {
        RETURNING *`,
       [groupName, createdBy, status]
     );
-
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('DB error:', err);
+    console.error(err);
     res.status(500).json({ error: 'Database insert failed' });
   }
 });
 
 /**
- * GET - Fetch all Scheduling Groups
+ * @swagger
+ * /scheduling-groups:
+ *   get:
+ *     summary: Fetch all scheduling groups
+ *     tags: [Scheduling Groups]
  */
 app.get('/scheduling-groups', async (_req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM scheduling_groups ORDER BY ID DESC'
+      'SELECT * FROM scheduling_groups ORDER BY id DESC'
     );
     res.json(result.rows);
   } catch (err) {
@@ -72,14 +104,20 @@ app.get('/scheduling-groups', async (_req, res) => {
 });
 
 /**
- * DELETE - Delete Scheduling Group by ID
+ * @swagger
+ * /scheduling-groups/{id}:
+ *   delete:
+ *     summary: Delete scheduling group by ID
+ *     tags: [Scheduling Groups]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
  */
 app.delete('/scheduling-groups/:id', async (req, res) => {
   const { id } = req.params;
-
-  if (!id) {
-    return res.status(400).json({ error: 'Missing ID parameter' });
-  }
 
   try {
     const result = await pool.query(
@@ -88,26 +126,34 @@ app.delete('/scheduling-groups/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Scheduling group not found' });
+      return res.status(404).json({ error: 'Not found' });
     }
 
-    res.json({ message: 'Scheduling group deleted successfully', deletedGroup: result.rows[0] });
+    res.json({
+      message: 'Deleted successfully',
+      deletedGroup: result.rows[0]
+    });
   } catch (err) {
-    console.error('DB error:', err);
+    console.error(err);
     res.status(500).json({ error: 'Database delete failed' });
   }
 });
 
 /**
- * DELETE - Delete Scheduling Groups by Status
+ * @swagger
+ * /scheduling-groups/status/{status}:
+ *   delete:
+ *     summary: Delete scheduling groups by status
+ *     tags: [Scheduling Groups]
+ *     parameters:
+ *       - in: path
+ *         name: status
+ *         required: true
+ *         schema:
+ *           type: string
  */
 app.delete('/scheduling-groups/status/:status', async (req, res) => {
-  console.log('DELETE /scheduling-groups/status/:status called with status:', req.params.status);
   const { status } = req.params;
-
-  if (!status) {
-    return res.status(400).json({ error: 'Missing status parameter' });
-  }
 
   try {
     const result = await pool.query(
@@ -116,16 +162,20 @@ app.delete('/scheduling-groups/status/:status', async (req, res) => {
     );
 
     res.json({
-      message: `${result.rows.length} scheduling group(s) deleted successfully`,
+      message: `${result.rows.length} group(s) deleted`,
       deletedGroups: result.rows
     });
   } catch (err) {
-    console.error('DB error:', err);
+    console.error(err);
     res.status(500).json({ error: 'Database delete failed' });
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+/* =========================
+   Start server
+========================= */
+app.listen(PORT, () => {
   console.log(`API running at http://localhost:${PORT}`);
-  // console.log(`Swagger UI available at http://localhost:${PORT}/swagger`);
+  console.log(`Swagger UI at http://localhost:${PORT}/swagger`);
+  console.log(`Swagger JSON at http://localhost:${PORT}/v3/api-docs`);
 });
