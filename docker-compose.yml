@@ -1,33 +1,25 @@
+version: "3.9"
+
 services:
   db:
     image: postgres:15
+    container_name: automation-postgres
     env_file:
       - .env
-    volumes:
-      - db_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
       - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
 
-  app:
-    build: .
-    ports:
-      - "3000:3000"
+  api:
+    image: shekhardocker2020/scheduling-api:latest
+    container_name: scheduling-api
     env_file:
       - .env
+    ports:
+      - "3000:3000"
     depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - app-network
+      - db
 
 volumes:
-  db_data:
-
-networks:
-  app-network:
+  pgdata:
