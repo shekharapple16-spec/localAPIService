@@ -5,8 +5,8 @@ A simple Node.js Express API for managing scheduling groups with PostgreSQL data
 ## Setup
 
 1. Clone the repository.
-2. Copy `.env.example` to `.env` and fill in your database credentials.
-3. Run `docker-compose up --build` to start the application.
+2. Run `docker build -t yourname/single-api-db .` to build the combined image.
+3. Run `docker run -p 3000:3000 yourname/single-api-db` to start the application.
 4. The API will be available at `http://localhost:3000`.
 
 ## Endpoints
@@ -16,4 +16,4 @@ A simple Node.js Express API for managing scheduling groups with PostgreSQL data
 
 ## Docker Hub
 
-The image is available at `shekhardocker2020/api-db-postgress`. Pull and run with your own `.env` file.
+The combined image is available at `yourname/single-api-db`. Pull and run with `docker run -p 3000:3000 yourname/single-api-db`.

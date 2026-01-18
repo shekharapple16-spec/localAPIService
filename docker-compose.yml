@@ -1,25 +1,10 @@
 version: "3.9"
 
 services:
-  db:
-    image: postgres:15
-    container_name: automation-postgres
-    env_file:
-      - .env
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
   api:
-    image: shekhardocker2020/scheduling-api:latest
+    image: single-api-db
     container_name: scheduling-api
     env_file:
       - .env
     ports:
       - "3000:3000"
-    depends_on:
-      - db
-
-volumes:
-  pgdata:
