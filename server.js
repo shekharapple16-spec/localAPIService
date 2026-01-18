@@ -1,7 +1,7 @@
 import express from 'express';
 import pool from './db.js';
 import swaggerUi from 'swagger-ui-express';
-import swaggerSpec from './swagger.js';
+import swaggerJsdoc from 'swagger-jsdoc';
 
 const app = express();
 const PORT = 3000;
@@ -12,8 +12,25 @@ const PORT = 3000;
 app.use(express.json());
 
 /* =========================
-   Swagger
+   Swagger Configuration
 ========================= */
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Scheduling Group API',
+      version: '1.0.0',
+    },
+    servers: [
+      {
+        url: 'http://localhost:3000',
+      },
+    ],
+  },
+  apis: ['./server.js'],
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
 // Raw Swagger JSON (for Playwright / automation)
 app.get('/v3/api-docs', (_req, res) => {
@@ -36,6 +53,58 @@ pool.connect((err, client, release) => {
 });
 
 /* =========================
+   Swagger Schemas
+========================= */
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     SchedulingGroup:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         group_name:
+ *           type: string
+ *         created_by:
+ *           type: string
+ *         status:
+ *           type: string
+ *
+ *     CreateSchedulingGroupRequest:
+ *       type: object
+ *       required:
+ *         - groupName
+ *         - createdBy
+ *         - status
+ *       properties:
+ *         groupName:
+ *           type: string
+ *         createdBy:
+ *           type: string
+ *         status:
+ *           type: string
+ *
+ *     DeleteByIdResponse:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *         deletedGroup:
+ *           $ref: '#/components/schemas/SchedulingGroup'
+ *
+ *     DeleteByStatusResponse:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *         deletedGroups:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/SchedulingGroup'
+ */
+
+/* =========================
    APIs
 ========================= */
 
@@ -50,18 +119,14 @@ pool.connect((err, client, release) => {
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required: [groupName, createdBy, status]
- *             properties:
- *               groupName:
- *                 type: string
- *               createdBy:
- *                 type: string
- *               status:
- *                 type: string
+ *             $ref: '#/components/schemas/CreateSchedulingGroupRequest'
  *     responses:
  *       201:
  *         description: Created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SchedulingGroup'
  */
 app.post('/scheduling-groups', async (req, res) => {
   const { groupName, createdBy, status } = req.body;
@@ -90,6 +155,15 @@ app.post('/scheduling-groups', async (req, res) => {
  *   get:
  *     summary: Fetch all scheduling groups
  *     tags: [Scheduling Groups]
+ *     responses:
+ *       200:
+ *         description: List of scheduling groups
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/SchedulingGroup'
  */
 app.get('/scheduling-groups', async (_req, res) => {
   try {
@@ -115,6 +189,15 @@ app.get('/scheduling-groups', async (_req, res) => {
  *         required: true
  *         schema:
  *           type: integer
+ *     responses:
+ *       200:
+ *         description: Deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/DeleteByIdResponse'
+ *       404:
+ *         description: Not found
  */
 app.delete('/scheduling-groups/:id', async (req, res) => {
   const { id } = req.params;
@@ -131,7 +214,7 @@ app.delete('/scheduling-groups/:id', async (req, res) => {
 
     res.json({
       message: 'Deleted successfully',
-      deletedGroup: result.rows[0]
+      deletedGroup: result.rows[0],
     });
   } catch (err) {
     console.error(err);
@@ -151,6 +234,13 @@ app.delete('/scheduling-groups/:id', async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
+ *     responses:
+ *       200:
+ *         description: Groups deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/DeleteByStatusResponse'
  */
 app.delete('/scheduling-groups/status/:status', async (req, res) => {
   const { status } = req.params;
@@ -163,7 +253,7 @@ app.delete('/scheduling-groups/status/:status', async (req, res) => {
 
     res.json({
       message: `${result.rows.length} group(s) deleted`,
-      deletedGroups: result.rows
+      deletedGroups: result.rows,
     });
   } catch (err) {
     console.error(err);
@@ -172,7 +262,7 @@ app.delete('/scheduling-groups/status/:status', async (req, res) => {
 });
 
 /* =========================
-   Start server
+   Start Server
 ========================= */
 app.listen(PORT, () => {
   console.log(`API running at http://localhost:${PORT}`);

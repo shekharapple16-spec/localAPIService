@@ -6,5 +6,6 @@ CREATE TABLE IF NOT EXISTS scheduling_groups (
   id SERIAL PRIMARY KEY,
   group_name VARCHAR(255) NOT NULL,
   created_by VARCHAR(255) NOT NULL,
+  status VARCHAR(50) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
